@@ -153,7 +153,7 @@ def main():
     if y_true is not None:
         plot_2d(X_tsne_2d, labels_to_codes(y_true), f"True Labels (t-SNE, perplexity={perplexity})", OUT_DIR / "true_tsne2d.png")
 
-    print("✅ Part 2d done.")
+    print(" Part 2d done.")
     print(f"- Metrics: {OUT_DIR / 'unsupervised_metrics.json'}")
     print(f"- Assignments: {OUT_DIR / 'cluster_assignments.csv'}")
     print(f"- Plots: {OUT_DIR}/*.png")
