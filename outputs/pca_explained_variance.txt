@@ -1,0 +1,3 @@
+PCA 2D explained variance sum: 0.4733
+PC1: 0.2435
+PC2: 0.2298

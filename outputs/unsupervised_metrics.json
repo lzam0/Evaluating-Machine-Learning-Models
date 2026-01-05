@@ -1,0 +1,16 @@
+{
+  "dataset": "C:\\NetworkCW2\\AI_CW2\\data\\cleaned_features\\hand_landmarks_cleaned.csv",
+  "n_samples": 3648,
+  "n_features": 63,
+  "k": 10,
+  "kmeans": {
+    "silhouette": 0.14363904954595377,
+    "ARI": 0.32278107060944483,
+    "NMI": 0.45488661653208423
+  },
+  "hierarchical": {
+    "silhouette": 0.10730519467694012,
+    "ARI": 0.33347059808657803,
+    "NMI": 0.519113980066742
+  }
+}
