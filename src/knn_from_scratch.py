@@ -1,8 +1,12 @@
+import math
+from collections import Counter
+
 import  numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from collections import Counter
+
+import random
 
 # Split data into training and testing sets
 from sklearn.model_selection import train_test_split
@@ -27,11 +31,11 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # Euclidean distance - is a straight line distance between two points (like a ruler)
 def euclidean_distance(point1, point2):
-    return np.sqrt(np.sum((point1 - point2) ** 2))
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(point1, point2)))
 
 # Manhattan distance - is the sum of the absolute difference of their coordinates (like navigating a grid of city blocks)
 def manhattan_distance(point1, point2):
-    return np.sum(np.abs(point1 - point2))
+    return sum(abs(a - b) for a, b in zip(point1, point2))
 
 #--------------------------------------------------------------------------------------------
 
@@ -50,7 +54,7 @@ class KNN:
     def predict(self, new_points):
         # create a list comprehension to store predictions - iterates through each points in new_points
         predictions = [self.predict_class(point) for point in new_points]
-        return np.array(predictions) # convert to np array
+        return predictions
     
     def predict_class(self, new_point):
         # calculate the distance between new point and every point in the data
@@ -59,7 +63,10 @@ class KNN:
         #distance = [euclidean_distance(point, new_point) for point in self.X_train]
 
         # find the indicies of k smallest distances - with the position of the list k smallest distances
-        k_nearest_indices = np.argsort(distance)[:self.k]
+        k_nearest_indices = sorted(
+            range(len(distance)),
+            key=lambda i: distance[i]
+        )[:self.k]
 
         # retrieve the corresponding labels for the k nearest indices
         k_nearest_labels = [self.y_train[i] for i in k_nearest_indices]
@@ -67,6 +74,30 @@ class KNN:
         most_common = Counter(k_nearest_labels).most_common(1)[0][0] # get the most common label
 
         return most_common
+
+# --------------------------------------------------------------------------------------------
+# Helper function to create folds for cross validation
+def create_folds(X, y, k_folds=5, seed=2):
+    # Set random seed for reproducibility (Also utilised inside of Decision Trees)
+    random.seed(seed)
+
+    # Shuffle the data indices
+    indices = list(range(len(X)))
+    random.shuffle(indices)
+
+    # Split indices into k folds
+    fold_size = len(X) // k_folds
+    folds = []
+
+    # Iterate through the k folds and create the fold indices
+    for i in range(k_folds):
+        start = i * fold_size
+        end = start + fold_size if i != k_folds - 1 else len(X)
+        fold_indices = indices[start:end]
+        folds.append(fold_indices) # Append the fold indices to the folds list
+
+    return folds
+
 
 # --------------------------------------------------------------------------------------------
 # Train and evaluate the KNN model
@@ -77,8 +108,7 @@ distance_metrics = {
     "Manhattan": manhattan_distance
 }
 
-# Look at the 5 nearest neighbours
-# In the future can look into more than just the 5 nearest neighbours (might be quite limiting!)
+# Different k values to test
 k_values = [3,5,10,25,50] # testing different k values 
 n_runs = 5
 
@@ -121,6 +151,8 @@ for distance_name, distance_func in distance_metrics.items():
 
         print(f"k={k} | Mean Accuracy={mean_accuracy:.3f} | Std={std_accuracy:.3f}")
 
+# --------------------------------------------------------------------------------------------
+# Single run with chosen parameters for confusion matrix and recall calculation 
 
 # knn = KNN(k=5)
 
@@ -138,46 +170,48 @@ for distance_name, distance_func in distance_metrics.items():
 
 # Visualisation of the confusion matrix
 from sklearn.metrics import confusion_matrix
+def confusion_matrix():
+    # Create confusion matrix data based of y_test and predictions
+    cm = confusion_matrix(y_test, predictions)
 
-# Create confusion matrix data based of y_test and predictions
-cm = confusion_matrix(y_test, predictions)
+    # Graph using Seaborn
+    plt.figure(figsize=(10, 8))
 
-# Graph using Seaborn
-plt.figure(figsize=(10, 8))
-
-# Heat map
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-            xticklabels=np.unique(y),
-            yticklabels=np.unique(y))
-plt.xlabel('Predicted Label')
-plt.ylabel('True Label')
-plt.title('Confusion Matrix for KNN ASL Classification')
-plt.tight_layout()
-plt.show()
-plt.savefig('knn_confusion_matrix.png')
+    # Heat map
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=np.unique(y),
+                yticklabels=np.unique(y))
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.title('Confusion Matrix for KNN ASL Classification')
+    plt.tight_layout()
+    plt.show()
+    plt.savefig('knn_confusion_matrix.png')
 #--------------------------------------------------------------------------------------------
 
 # Calculate the precision, recall, and F1-score for each class
 
-classes = np.unique(y)
-recall_per_class = {}
+def calculate_recall_per_class():
+        
+    classes = np.unique(y)
+    recall_per_class = {}
 
-# Calculate recall for each class - iterate through each class
-for i, label in enumerate(classes):
+    # Calculate recall for each class - iterate through each class
+    for i, label in enumerate(classes):
 
-    # True Positives are on the diagonal
-    tp = cm[i, i]
+        # True Positives are on the diagonal
+        tp = cm[i, i]
 
-    # The sum of the row is the total actual samples for that class
-    total_actual = np.sum(cm[i, :])
-    recall = tp / total_actual if total_actual > 0 else 0
-    recall_per_class[label] = recall
-    print(f"Recall for Class {label}: {recall:.2f}")
+        # The sum of the row is the total actual samples for that class
+        total_actual = np.sum(cm[i, :])
+        recall = tp / total_actual if total_actual > 0 else 0
+        recall_per_class[label] = recall
+        print(f"Recall for Class {label}: {recall:.2f}")
 
-# Optional: Visualize Recall as a bar chart
-plt.figure(figsize=(10, 5))
-plt.bar(recall_per_class.keys(), recall_per_class.values(), color='skyblue')
-plt.title('Recall per Class (KNN from Scratch)')
-plt.ylabel('Recall Score')
-plt.ylim(0, 1) # Recall is always between 0 and 1
-plt.show()
+    # Optional: Visualize Recall as a bar chart
+    plt.figure(figsize=(10, 5))
+    plt.bar(recall_per_class.keys(), recall_per_class.values(), color='skyblue')
+    plt.title('Recall per Class (KNN from Scratch)')
+    plt.ylabel('Recall Score')
+    plt.ylim(0, 1) # Recall is always between 0 and 1
+    plt.show()
