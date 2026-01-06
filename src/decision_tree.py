@@ -5,19 +5,32 @@ import numpy as np
 
 from collections import Counter
 
+
 # Split data into training and testing sets
 from sklearn.model_selection import train_test_split
 
 # Load the extracted features dataset
 data = pd.read_csv('data/extracted_features/hand_landmarks.csv') # Replace with actual path to your CSV file
-#data = pd.read_csv('dummy_asl_features.csv') # Replace with actual path to your CSV file
 
 # Separate features and labels
 X = data.drop(columns=['instance_id', 'label']).values
 y = data['label'].values
 
-# Creaete training testing set - radnom state utilised so that the split is reproducible (seed)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
+# Create training testing set - random state utilised so that the split is reproducible (seed)
+# First split off test set (20%)
+X_temp, X_test, y_temp, y_test = train_test_split(
+    X, y, test_size=0.20, random_state=2
+)
+
+# Then split the remaining data into training (60%) and validation (20%)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_temp, y_temp, test_size=0.25, random_state=2
+)
+
+print(f"Training size: {len(X_train)}") # ~60%
+print(f"Validation size: {len(X_val)}") # ~20%
+print(f"Testing size: {len(X_test)}") # ~20%
+print(f"Total Dataset size: {len(X)}") # 100%
 
 #--------------------------------------------------------------------------------------------
 
@@ -50,7 +63,6 @@ y_pred = best_tree.predict(X_test)
 print(classification_report(y_test, y_pred)) # This gives you Accuracy and Sensitivity (Recall)!
 
 #--------------------------------------------------------------------------------------------
-
 # Visualisation of the confusion matrix
 
 # Create confusion matrix data based of y_test and predictions

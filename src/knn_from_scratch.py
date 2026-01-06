@@ -11,20 +11,28 @@ import random
 # Split data into training and testing sets
 from sklearn.model_selection import train_test_split
 
-# output path for visualisations
-confusion_matrix_png = 'knn_confusion_matrix.png'
-
-# Eventually have it so that it gets parsed by a main script
 # Load the extracted features dataset
 data = pd.read_csv('data/extracted_features/hand_landmarks.csv') # Replace with actual path to your CSV file
-#data = pd.read_csv('dummy_asl_features.csv')
 
 # Separate features and labels
 X = data.drop(columns=['instance_id', 'label']).values
 y = data['label'].values
 
 # Create training testing set - random state utilised so that the split is reproducible (seed)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
+# First split off test set (20%)
+X_temp, X_test, y_temp, y_test = train_test_split(
+    X, y, test_size=0.20, random_state=2
+)
+
+# Then split the remaining data into training (60%) and validation (20%)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_temp, y_temp, test_size=0.25, random_state=2
+)
+
+print(f"Training size: {len(X_train)}") # ~60%
+print(f"Validation size: {len(X_val)}") # ~20%
+print(f"Testing size: {len(X_test)}") # ~20%
+print(f"Total Dataset size: {len(X)}") # 100%
 
 #--------------------------------------------------------------------------------------------
 # Distances functions
@@ -110,108 +118,132 @@ distance_metrics = {
 
 # Different k values to test
 k_values = [3,5,10,25,50] # testing different k values 
-n_runs = 5
+
+# We do this on the 80% temp data (Training + Validation)
+folds = create_folds(X_train, y_train, k_folds=5)
 
 results = []
 
 for distance_name, distance_func in distance_metrics.items():
     print(f"\nDistance Metric: {distance_name}")
 
+    # Iterate through different k values (hyperparameter)
     for k in k_values:
-        accuracies = []
+        fold_accuracies = []
 
-        for run in range(n_runs):
-            # Different random_state each run
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=run
-            )
-            
-            # Train the KNN model
+        for i in range(len(folds)):
+            # Validation fold
+            val_indices = folds[i]
+
+            # Training folds (all except 1 validation fold)
+            train_indices = []
+            for j in range(len(folds)):
+                if j != i:
+                    train_indices.extend(folds[j])
+
+            # Build CV train/val sets
+            X_cv_train = X_train[train_indices]
+            y_cv_train = y_train[train_indices]
+            X_cv_val = X_train[val_indices]
+            y_cv_val = y_train[val_indices]
+
+            # Train KNN on 4 folds
             knn = KNN(k=k, distance_metric=distance_func)
-            knn.fit(X_train, y_train)
-            
-            # Retrieve predictions for the test set
-            predictions = knn.predict(X_test)
+            knn.fit(X_cv_train, y_cv_train)
 
-            # Calculate accuracy
-            accuracy = np.mean(predictions == y_test)
-            accuracies.append(accuracy)
+            # Validate on 1 fold
+            predictions = knn.predict(X_cv_val)
+            accuracy = np.mean(predictions == y_cv_val)
+            fold_accuracies.append(accuracy)
 
-        # Calculate mean and standard deviation of accuracy
-        mean_accuracy = np.mean(accuracies)
-        std_accuracy = np.std(accuracies)
+        # CV results
+        mean_acc = np.mean(fold_accuracies)
+        std_acc = np.std(fold_accuracies)
 
-        # Store results
+        # Store the results
         results.append({
             "Distance": distance_name,
             "k": k,
-            "Mean Accuracy": mean_accuracy,
-            "Std Dev": std_accuracy
+            "Mean Accuracy": mean_acc,
+            "Std Dev": std_acc
         })
 
-        print(f"k={k} | Mean Accuracy={mean_accuracy:.3f} | Std={std_accuracy:.3f}")
+        print(f"k={k} | Mean Accuracy={mean_acc:.3f} | Std={std_acc:.3f}")
+
 
 # --------------------------------------------------------------------------------------------
-# Single run with chosen parameters for confusion matrix and recall calculation 
 
-# knn = KNN(k=5)
+# Select best hyperparameters based on CV results
 
-# # Train the KNN model
-# knn.fit(X_train, y_train)
+# Find the row with the highest mean accuracy
+best_row = max(results, key=lambda x: x['Mean Accuracy'])
 
-# # Retrieve predictions for the test set
-# predictions = knn.predict(X_test)
+# Extract best k and distance metric
+best_k = best_row['k']
+best_distance_name = best_row['Distance']
+best_distance_func = distance_metrics[best_distance_name]
 
-# # To evaluate how accurate the model is, we can calculate the accuracy
-# accuracy = np.mean(predictions == y_test) * 100
-# print(f"KNN classification accuracy: {accuracy:.2f}%")
+print(f"\nBest Model from CV -> k={best_k}, Distance Metric={best_distance_name}, Mean Accuracy={best_row['Mean Accuracy']:.3f}")
+
+# --------------------------------------------------------------------------------------------
+# Retrain the model based on full training set with best hyperparameters
+
+# Retrain KNN model
+knn_best = KNN(k=best_k, distance_metric=best_distance_func)
+knn_best.fit(X_train, y_train)
+
+# Predict on the test set
+predictions = knn_best.predict(X_test)
+
+# Calculate overall test accuracy
+test_accuracy = np.mean(predictions == y_test)
+print(f"Test Set Accuracy: {test_accuracy:.3f}")
 
 # --------------------------------------------------------------------------------------------
 
 # Visualisation of the confusion matrix
 from sklearn.metrics import confusion_matrix
-def confusion_matrix():
-    # Create confusion matrix data based of y_test and predictions
-    cm = confusion_matrix(y_test, predictions)
 
-    # Graph using Seaborn
-    plt.figure(figsize=(10, 8))
+# output path for visualisations
+confusion_matrix_png = 'knn_confusion_matrix.png'
 
-    # Heat map
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                xticklabels=np.unique(y),
-                yticklabels=np.unique(y))
-    plt.xlabel('Predicted Label')
-    plt.ylabel('True Label')
-    plt.title('Confusion Matrix for KNN ASL Classification')
-    plt.tight_layout()
-    plt.show()
-    plt.savefig('knn_confusion_matrix.png')
+
+# Create confusion matrix data based of y_test and predictions
+cm = confusion_matrix(y_test, predictions)
+
+# Graph using Seaborn
+plt.figure(figsize=(10, 8))
+
+# Heat map
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=np.unique(y),
+            yticklabels=np.unique(y))
+plt.xlabel('Predicted Label')
+plt.ylabel('True Label')
+plt.title(f'Confusion Matrix (k={best_k}, {best_distance_name} Distance)')
+plt.tight_layout()
+plt.savefig(confusion_matrix_png)
+plt.show()
+
+# Save the confusion matrix plot of best KNN model
+plt.savefig('knn_confusion_matrix.png')
 #--------------------------------------------------------------------------------------------
 
 # Calculate the precision, recall, and F1-score for each class
+classes = np.unique(y)
+recall_per_class = {}
 
-def calculate_recall_per_class():
-        
-    classes = np.unique(y)
-    recall_per_class = {}
+print("\nRecall per Class:")
+for i, label in enumerate(classes):
+    tp = cm[i, i]
+    total_actual = np.sum(cm[i, :])
+    recall = tp / total_actual if total_actual > 0 else 0
+    recall_per_class[label] = recall
+    print(f"Recall for Class {label}: {recall:.3f}")
 
-    # Calculate recall for each class - iterate through each class
-    for i, label in enumerate(classes):
+avg_recall = np.mean(list(recall_per_class.values()))
+print(f"\nAverage Recall across all classes: {avg_recall:.3f}")
 
-        # True Positives are on the diagonal
-        tp = cm[i, i]
-
-        # The sum of the row is the total actual samples for that class
-        total_actual = np.sum(cm[i, :])
-        recall = tp / total_actual if total_actual > 0 else 0
-        recall_per_class[label] = recall
-        print(f"Recall for Class {label}: {recall:.2f}")
-
-    # Optional: Visualize Recall as a bar chart
-    plt.figure(figsize=(10, 5))
-    plt.bar(recall_per_class.keys(), recall_per_class.values(), color='skyblue')
-    plt.title('Recall per Class (KNN from Scratch)')
-    plt.ylabel('Recall Score')
-    plt.ylim(0, 1) # Recall is always between 0 and 1
-    plt.show()
+f1_per_class = {}
+print("\nF1-Score per Class:")
+# --------------------------------------------------------------------------------------------
