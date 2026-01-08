@@ -10,18 +10,18 @@ import cv2
 import csv
 import numpy as np
 import mediapipe as mp
+from pathlib import Path
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-
-# Path to ASL images
-IMAGE_DIR = "data/CW2_dataset_final"
-MODEL_PATH = "models/hand_landmarker.task"
-print(MODEL_PATH)
-OUTPUT_CSV = "data/extracted_features/hand_landmarks.csv"
-
 # Create HandLandmarker
-base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+ROOT = Path(__file__).resolve().parent.parent
+MODEL_PATH = ROOT / "models" / "hand_landmarker.task"
+# Path to ASL images
+IMAGE_DIR = ROOT / "data" / "CW2_dataset_final"
+OUTPUT_CSV = ROOT / "data" / "extracted_features" / "hand_landmarks.csv"
+
+base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
 options = vision.HandLandmarkerOptions(
     base_options=base_options,
     num_hands=1
