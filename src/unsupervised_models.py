@@ -25,7 +25,6 @@ def plot_2d(points_2d, colors, title, out_path):
     plt.xlabel("Dim 1")
     plt.ylabel("Dim 2")
 
-    # ADD COLORBAR HERE
     plt.colorbar(scatter, label="Cluster ID")
 
     plt.tight_layout()
@@ -34,7 +33,7 @@ def plot_2d(points_2d, colors, title, out_path):
 
 
 def labels_to_codes(labels: pd.Series) -> np.ndarray:
-    # Converts A-J (or any labels) -> 0..n-1 codes for colouring
+    # Converts A-J
     return labels.astype("category").cat.codes.to_numpy()
 
 
@@ -57,7 +56,7 @@ def main():
     if X.shape[1] == 0:
         raise ValueError("No feature columns found after dropping instance_id/label.")
 
-    # Scale features (critical for clustering + t-SNE)
+    # Scale features
     X_scaled = StandardScaler().fit_transform(X.to_numpy())
 
     # Choose k
@@ -108,9 +107,8 @@ def main():
     out_df["hier_cluster"] = hier_labels
     out_df.to_csv(OUT_DIR / "cluster_assignments.csv", index=False)
 
-    # ---------------------------
-    # 3) PCA 2D (VISUALISATION ONLY)
-    # ---------------------------
+    # PCA 2D
+
     pca = PCA(n_components=2, random_state=42)
     X_pca_2d = pca.fit_transform(X_scaled)
     (OUT_DIR / "pca_explained_variance.txt").write_text(
@@ -128,7 +126,7 @@ def main():
     if y_true is not None:
         plot_2d(X_pca_2d, labels_to_codes(y_true), "True Labels (PCA 2D)", OUT_DIR / "true_pca2d.png")
 
-    # 4) t-SNE 2D
+    # t-SNE 2D
     n = X_scaled.shape[0]
     perplexity = min(30, max(5, (n - 1) // 3))  # safe-ish default
 
