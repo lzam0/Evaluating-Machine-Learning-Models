@@ -64,12 +64,12 @@ dt_clf = DecisionTreeClassifier(random_state=2)
 # Splits training data into 5 pieces
 # Trains model on 4 pieces and tests on the 5th piece
 # Repeats this for every combination for hyper parameters in the grid
-grid_search = GridSearchCV(dt_clf, param_grid, cv=5, scoring='accuracy')
-grid_search.fit(X_train, y_train)
+dt_grid = GridSearchCV(dt_clf, param_grid, cv=5, scoring='accuracy')
+dt_grid.fit(X_train, y_train)
 
 # Identify best parameters from the grid search
-print(f"Best Parameters: {grid_search.best_params_}")
-best_tree = grid_search.best_estimator_
+print(f"Best Parameters: {dt_grid.best_params_}")
+best_tree = dt_grid.best_estimator_
 # Explain why these parameters were chosen (Highest Mean cross validation accuracy)
 
 # Evaluate the best model on the test set
@@ -94,11 +94,11 @@ rf_clf = RandomForestClassifier(random_state=2)
 # Grid Search with Cross-Validation
 # Trains model on 4 pieces and tests on the 5th piece
 # Repeats this for every combination for hyper parameters in the grid
-grid_search = GridSearchCV(rf_clf, param_grid, cv=5, scoring='accuracy', n_jobs=-1)
-grid_search.fit(X_train, y_train)
+rf_grid = GridSearchCV(rf_clf, param_grid, cv=5, scoring='accuracy', n_jobs=-1)
+rf_grid.fit(X_train, y_train)
 
-print (f"Best Parameters: {grid_search.best_params_}")
-best_forest = grid_search.best_estimator_
+print (f"Best Parameters: {rf_grid.best_params_}")
+best_forest = rf_grid.best_estimator_
 
 # Evaluate the best model on the test set
 y_pred = best_forest.predict(X_test)
@@ -134,7 +134,7 @@ y_pred_forest = best_forest.predict(X_test)
 plot_cm(y_test, y_pred_forest, "Random Forest")
 
 #--------------------------------------------------------------------------------------------
-# Identify the BEST classification model
+# Identify the BEST classification model based off 'accuracy'
 
 # Store accuracies for comparison
 results = {
@@ -150,3 +150,72 @@ for model, acc in results.items():
     print(f"{model} Accuracy: {acc:.4%}")
 
 print(f"\nThe best classifier is: {best_model_name}")
+
+#--------------------------------------------------------------------------------------------
+
+# Identify the BEST classification model based off 'accuracy'
+
+# Store accuracies for comparison
+results = {
+    "kNN": accuracy_score(y_test, y_pred_knn),
+    "Decision Tree": accuracy_score(y_test, y_pred_tree),
+    "Random Forest": accuracy_score(y_test, y_pred_forest)
+}
+
+# Present the best model
+best_model_name = max(results, key=results.get)
+print(f"\n--- Final Analysis ---")
+for model, acc in results.items():
+    print(f"{model} Accuracy: {acc:.4%}")
+
+print(f"\nThe best classifier is: {best_model_name}")
+
+#--------------------------------------------------------------------------------------------
+# Final Analysis: Consistency Check (CV Score vs Test Score)
+
+# Note: For kNN, we don't have a GridSearchCV object, so we use the training accuracy 
+# as a proxy for comparison if cross-validation wasn't performed on it.
+knn_train_acc = accuracy_score(y_train, knn_model.predict(X_train))
+
+# Store results in a dictionary for comparison
+comparison_data = {
+    "kNN": {
+        "cv_acc": knn_train_acc, # Proxy for consistency
+        "test_acc": accuracy_score(y_test, y_pred_knn)
+    },
+    "Decision Tree": {
+        "cv_acc": dt_grid.best_score_, # Mean accuracy from CV folds
+        "test_acc": accuracy_score(y_test, y_pred_tree)
+    },
+    "Random Forest": {
+        "cv_acc": rf_grid.best_score_, # Mean accuracy from CV folds
+        "test_acc": accuracy_score(y_test, y_pred_forest)
+    }
+}
+
+print(f"\n--- Model Consistency Analysis ---")
+print(f"{'Model':<15} | {'CV Acc':<10} | {'Test Acc':<10} | {'Gap (Diff)':<10}")
+print("-" * 55)
+
+consistency_results = {}
+
+for model, scores in comparison_data.items():
+    cv = scores['cv_acc']
+    test = scores['test_acc']
+    gap = abs(cv - test)
+    consistency_results[model] = gap
+    print(f"{model:<15} | {cv:>8.2%} | {test:>9.2%} | {gap:>9.2%}")
+
+# The "Best" model based on consistency (smallest gap)
+most_consistent_model = min(consistency_results, key=consistency_results.get)
+# The "Best" model based on raw accuracy
+highest_accuracy_model = max(comparison_data, key=lambda x: comparison_data[x]['test_acc'])
+
+print(f"\nHighest Accuracy Model: {highest_accuracy_model}")
+print(f"Most Consistent Model: {most_consistent_model} (Difference of {consistency_results[most_consistent_model]:.2%})")
+
+# Final recommendation logic
+if most_consistent_model == highest_accuracy_model:
+    print(f"Decision: {most_consistent_model} is the clear winner.")
+else:
+    print(f"Decision: Consider {most_consistent_model} for stability or {highest_accuracy_model} for raw performance.")
