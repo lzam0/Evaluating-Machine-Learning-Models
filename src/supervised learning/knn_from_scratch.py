@@ -38,7 +38,7 @@ class KNN:
         self.X_train = X
         self.y_train = y
 
-    # take in numpy array of new datapoints to predict
+    # take array of new datapoints to predict
     def predict(self, new_points):
         # create a list comprehension to store predictions - iterates through each points in new_points
         predictions = [self.predict_class(point) for point in new_points]
@@ -156,13 +156,13 @@ if __name__ == "__main__":
                         if j != i:
                             train_indices.extend(folds[j])
 
-                    # Build CV train/val sets
+                    # Build cross fold validation train/val sets
                     X_cv_train = X_train[train_indices]
                     y_cv_train = y_train[train_indices]
                     X_cv_val = X_train[val_indices]
                     y_cv_val = y_train[val_indices]
 
-                    # Train KNN on 4 folds
+                    # Train KNN on 4 other folds
                     knn = KNN(k=k, distance_metric=distance_func)
                     knn.fit(X_cv_train, y_cv_train)
 
@@ -199,7 +199,7 @@ if __name__ == "__main__":
 
         # Retrain the model based on full training set with best hyperparameters
 
-        # Retrain KNN model
+        # Retrain KNN model 
         knn_best = KNN(k=best_k, distance_metric=best_distance_func)
         knn_best.fit(X_train, y_train)
 

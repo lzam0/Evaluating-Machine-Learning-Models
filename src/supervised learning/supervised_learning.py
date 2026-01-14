@@ -70,7 +70,6 @@ dt_grid.fit(X_train, y_train)
 # Identify best parameters from the grid search
 print(f"Best Parameters: {dt_grid.best_params_}")
 best_tree = dt_grid.best_estimator_
-# Explain why these parameters were chosen (Highest Mean cross validation accuracy)
 
 # Evaluate the best model on the test set
 y_pred = best_tree.predict(X_test)
