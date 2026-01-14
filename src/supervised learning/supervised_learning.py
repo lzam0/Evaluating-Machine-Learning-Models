@@ -250,3 +250,5 @@ print("\n--- Poster Comparison Table ---")
 print(results_df.to_string(index=False))
 
 results_df.to_csv("supervised_results_table.csv", index=False)
+
+find_best_model()
